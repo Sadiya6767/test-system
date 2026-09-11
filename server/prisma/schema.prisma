@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String   @default("Administrator")
+  createdAt DateTime @default(now())
+}
+
+model Question {
+  id           Int      @id @default(autoincrement())
+  order        Int      @default(0)
+  questionText String
+  optionA      String
+  optionB      String
+  optionC      String
+  optionD      String
+  correctAnswer String
+  createdAt    DateTime @default(now())
+  answers      Answer[]
+}
+
+model TestAttempt {
+  id             String    @id @default(uuid())
+  candidateName  String
+  email          String
+  college        String?
+  phone          String?
+  score          Int       @default(0)
+  totalQuestions Int       @default(10)
+  correctAnswers Int       @default(0)
+  wrongAnswers   Int       @default(0)
+  unanswered     Int       @default(0)
+  percentage     Float     @default(0)
+  status         String    @default("INCOMPLETE")
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  answers        Answer[]
+
+  @@index([email])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model Answer {
+  id             String      @id @default(uuid())
+  attemptId      String
+  attempt        TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId     Int
+  question       Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedAnswer String?
+  correctAnswer  String
+  isCorrect      Boolean     @default(false)
+  answered       Boolean     @default(false)
+  timeTaken      Float       @default(0)
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+}

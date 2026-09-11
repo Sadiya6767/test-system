@@ -1,0 +1,14 @@
+{
+  "name": "online-timed-test-system",
+  "version": "1.0.0",
+  "description": "Production-ready Online 10-Question Timed Test System with Candidate Portal & Admin Dashboard",
+  "private": true,
+  "scripts": {
+    "server:dev": "npm run dev --prefix server",
+    "server:start": "npm start --prefix server",
+    "client:dev": "npm run dev --prefix client",
+    "client:build": "npm run build --prefix client",
+    "db:push": "npx prisma db push --schema=server/prisma/schema.prisma",
+    "db:seed": "node server/prisma/seed.js"
+  }
+}
