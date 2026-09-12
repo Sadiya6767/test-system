@@ -15,8 +15,13 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
+const path = require('path');
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve uploaded resumes statically
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

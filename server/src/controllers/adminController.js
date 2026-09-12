@@ -78,7 +78,7 @@ const getStats = async (req, res) => {
 
     const completedAttempts = await prisma.testAttempt.findMany({
       where: { status: 'COMPLETED' },
-      select: { percentage: true, score: true }
+      select: { percentage: true, score: true, track: true }
     });
 
     let averageScore = 0;
@@ -93,6 +93,8 @@ const getStats = async (req, res) => {
       '81-100%': 0
     };
 
+    const trackCounts = {};
+
     if (completedAttempts.length > 0) {
       const percentages = completedAttempts.map(a => a.percentage);
       const sum = percentages.reduce((acc, curr) => acc + curr, 0);
@@ -100,12 +102,15 @@ const getStats = async (req, res) => {
       highestScore = Math.max(...percentages);
       lowestScore = Math.min(...percentages);
 
-      for (const p of percentages) {
+      for (const a of completedAttempts) {
+        const p = a.percentage;
         if (p <= 20) distribution['0-20%']++;
         else if (p <= 40) distribution['21-40%']++;
         else if (p <= 60) distribution['41-60%']++;
         else if (p <= 80) distribution['61-80%']++;
         else distribution['81-100%']++;
+
+        trackCounts[a.track] = (trackCounts[a.track] || 0) + 1;
       }
     }
 
@@ -123,7 +128,8 @@ const getStats = async (req, res) => {
         averageScore,
         highestScore,
         lowestScore,
-        distribution: distributionChartData
+        distribution: distributionChartData,
+        trackCounts
       }
     });
   } catch (error) {
@@ -141,12 +147,16 @@ const getStats = async (req, res) => {
  */
 const getResults = async (req, res) => {
   try {
-    const { search, status, scoreRange, sort } = req.query;
+    const { search, status, scoreRange, sort, track } = req.query;
 
     const where = {};
 
     if (status && status !== 'ALL') {
       where.status = status;
+    }
+
+    if (track && track !== 'ALL') {
+      where.track = { contains: track };
     }
 
     if (scoreRange && scoreRange !== 'ALL') {
@@ -164,7 +174,10 @@ const getResults = async (req, res) => {
       where.OR = [
         { candidateName: { contains: q } },
         { email: { contains: q } },
-        { college: { contains: q } }
+        { college: { contains: q } },
+        { currentCity: { contains: q } },
+        { branch: { contains: q } },
+        { track: { contains: q } }
       ];
     }
 
@@ -184,8 +197,14 @@ const getResults = async (req, res) => {
         id: true,
         candidateName: true,
         email: true,
-        college: true,
         phone: true,
+        college: true,
+        course: true,
+        branch: true,
+        passingYear: true,
+        currentCity: true,
+        resumeUrl: true,
+        track: true,
         score: true,
         totalQuestions: true,
         correctAnswers: true,
@@ -214,7 +233,7 @@ const getResults = async (req, res) => {
 
 /**
  * GET /api/admin/results/:id
- * Returns complete candidate information and question-by-question breakdown
+ * Returns complete candidate information, academic info, resume, and question-by-question breakdown
  */
 const getResultById = async (req, res) => {
   try {
@@ -229,6 +248,7 @@ const getResultById = async (req, res) => {
               select: {
                 id: true,
                 order: true,
+                section: true,
                 questionText: true,
                 optionA: true,
                 optionB: true,
@@ -254,7 +274,6 @@ const getResultById = async (req, res) => {
       });
     }
 
-    // Map answers for crystal-clear representation
     const questionsBreakdown = attempt.answers.map(ans => {
       const q = ans.question;
       const getOptionText = (key) => {
@@ -271,6 +290,7 @@ const getResultById = async (req, res) => {
       return {
         questionId: q.id,
         order: q.order,
+        section: q.section,
         questionText: q.questionText,
         optionA: q.optionA,
         optionB: q.optionB,
@@ -286,7 +306,6 @@ const getResultById = async (req, res) => {
       };
     });
 
-    // Calculate total duration if completed
     let durationSeconds = null;
     if (attempt.startedAt && attempt.completedAt) {
       durationSeconds = Math.round((new Date(attempt.completedAt) - new Date(attempt.startedAt)) / 1000);
@@ -298,8 +317,14 @@ const getResultById = async (req, res) => {
         id: attempt.id,
         candidateName: attempt.candidateName,
         email: attempt.email,
-        college: attempt.college || 'N/A',
         phone: attempt.phone || 'N/A',
+        college: attempt.college || 'N/A',
+        course: attempt.course || 'N/A',
+        branch: attempt.branch || 'N/A',
+        passingYear: attempt.passingYear || 'N/A',
+        currentCity: attempt.currentCity || 'N/A',
+        resumeUrl: attempt.resumeUrl,
+        track: attempt.track,
         score: attempt.score,
         totalQuestions: attempt.totalQuestions,
         correctAnswers: attempt.correctAnswers,
@@ -360,7 +385,7 @@ const deleteResult = async (req, res) => {
 
 /**
  * GET /api/admin/export
- * Downloads candidate results formatted as CSV
+ * Downloads candidate results formatted as CSV with academic fields and resume URLs
  */
 const exportCsv = async (req, res) => {
   try {
@@ -374,35 +399,53 @@ const exportCsv = async (req, res) => {
       return `"${formatted}"`;
     };
 
+    const host = req.get('host');
+    const protocol = req.protocol;
+
     const headers = [
       'Candidate Name',
       'Email',
-      'College',
       'Phone',
+      'College / University',
+      'Course / Degree',
+      'Branch / Specialization',
+      'Passing Year',
+      'Current Location (City)',
+      'Role Track',
       'Score',
       'Percentage',
       'Correct',
       'Wrong',
       'Unanswered',
       'Status',
+      'Resume URL',
       'Started At',
       'Completed At'
     ];
 
-    const rows = results.map(r => [
-      escapeCsv(r.candidateName),
-      escapeCsv(r.email),
-      escapeCsv(r.college || ''),
-      escapeCsv(r.phone || ''),
-      escapeCsv(`${r.score}/${r.totalQuestions}`),
-      escapeCsv(`${r.percentage}%`),
-      r.correctAnswers,
-      r.wrongAnswers,
-      r.unanswered,
-      escapeCsv(r.status),
-      escapeCsv(r.startedAt ? new Date(r.startedAt).toLocaleString() : ''),
-      escapeCsv(r.completedAt ? new Date(r.completedAt).toLocaleString() : '')
-    ].join(','));
+    const rows = results.map(r => {
+      const fullResumeLink = r.resumeUrl ? `${protocol}://${host}${r.resumeUrl}` : 'No resume uploaded';
+      return [
+        escapeCsv(r.candidateName),
+        escapeCsv(r.email),
+        escapeCsv(r.phone || ''),
+        escapeCsv(r.college || ''),
+        escapeCsv(r.course || ''),
+        escapeCsv(r.branch || ''),
+        escapeCsv(r.passingYear || ''),
+        escapeCsv(r.currentCity || ''),
+        escapeCsv(r.track),
+        escapeCsv(`${r.score}/${r.totalQuestions}`),
+        escapeCsv(`${r.percentage}%`),
+        r.correctAnswers,
+        r.wrongAnswers,
+        r.unanswered,
+        escapeCsv(r.status),
+        escapeCsv(fullResumeLink),
+        escapeCsv(r.startedAt ? new Date(r.startedAt).toLocaleString() : ''),
+        escapeCsv(r.completedAt ? new Date(r.completedAt).toLocaleString() : '')
+      ].join(',');
+    });
 
     const csvContent = [headers.join(','), ...rows].join('\r\n');
 

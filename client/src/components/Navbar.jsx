@@ -1,19 +1,19 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Timer, Shield, LogOut, ExternalLink } from 'lucide-react';
+import { Timer, Shield, LogOut } from 'lucide-react';
 
 const Navbar = () => {
   const { admin, isAuthenticated, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Hide nav links during active test taking to prevent distraction
+  // Hide nav during active test taking
   const isTakingTest = location.pathname === '/test/active';
 
   const handleLogout = () => {
     logout();
-    navigate('/admin/login');
+    navigate('/test');
   };
 
   return (
@@ -26,7 +26,7 @@ const Navbar = () => {
           </div>
           <div>
             <span className="font-bold text-slate-900 tracking-tight text-lg block leading-tight">QuickSkill</span>
-            <span className="text-xs text-slate-500 font-medium block">Timed Assessment</span>
+            <span className="text-xs text-slate-500 font-medium block">Skill Assessment Portal</span>
           </div>
         </Link>
 
@@ -35,16 +35,17 @@ const Navbar = () => {
           <div className="flex items-center gap-3">
             <Link
               to="/test"
-              className={`text-sm font-medium px-3 py-1.5 rounded-lg transition ${
+              className={`text-sm font-medium px-3.5 py-1.5 rounded-lg transition ${
                 location.pathname === '/test' || location.pathname === '/'
                   ? 'text-indigo-600 bg-indigo-50 font-semibold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              Take Test
+              Take Assessment
             </Link>
 
-            {isAuthenticated ? (
+            {/* ONLY visible if admin is already authenticated. Public visitors NEVER see Admin button! */}
+            {isAuthenticated && (
               <>
                 <Link
                   to="/admin/dashboard"
@@ -74,18 +75,6 @@ const Navbar = () => {
                   <span className="hidden sm:inline">Logout</span>
                 </button>
               </>
-            ) : (
-              <Link
-                to="/admin/login"
-                className={`flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg transition ${
-                  location.pathname === '/admin/login'
-                    ? 'text-indigo-600 bg-indigo-50 font-semibold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                }`}
-              >
-                <Shield className="w-4 h-4 text-slate-500" />
-                <span>Admin Login</span>
-              </Link>
             )}
           </div>
         )}

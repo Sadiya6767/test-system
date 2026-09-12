@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, CheckCircle, XCircle, Clock, CheckCircle2, ShieldCheck, Heart } from 'lucide-react';
+import { Award, CheckCircle, XCircle, Clock, ShieldCheck, Briefcase } from 'lucide-react';
 
 const CandidateResult = () => {
   const navigate = useNavigate();
@@ -23,15 +23,15 @@ const CandidateResult = () => {
 
   const {
     candidateName,
+    track = 'Web Developer Assessment',
     score = 0,
-    totalQuestions = 10,
+    totalQuestions = 15,
     correctAnswers = 0,
     wrongAnswers = 0,
     unanswered = 0,
     percentage = 0,
   } = result;
 
-  // Performance message classification based on specification
   let performanceTier = {
     title: 'Keep Practicing',
     badgeClass: 'bg-rose-100 text-rose-800 border-rose-200',
@@ -54,7 +54,7 @@ const CandidateResult = () => {
     performanceTier = {
       title: 'Needs Improvement',
       badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
-      description: 'You understand some fundamentals, but time pressure and tricky questions need practice.',
+      description: 'You understand some fundamentals, but time pressure and specialized questions need practice.',
     };
   }
 
@@ -75,12 +75,17 @@ const CandidateResult = () => {
 
       {/* Main Result Card */}
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-100 border border-slate-200 p-6 sm:p-8">
-        {/* Candidate Greeting */}
+        {/* Candidate & Track Details */}
         <div className="text-center pb-6 border-b border-slate-100">
           <span className="text-xs uppercase font-bold text-slate-400 tracking-wider">Candidate</span>
           <h2 className="text-2xl font-bold text-slate-900 mt-0.5">{candidateName}</h2>
 
-          <div className="mt-4 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${performanceTier.badgeClass}">
+          <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
+            <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
+            <span>{track}</span>
+          </div>
+
+          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${performanceTier.badgeClass}">
             <Award className="w-4 h-4" />
             <span>Performance: {performanceTier.title}</span>
           </div>
@@ -143,7 +148,7 @@ const CandidateResult = () => {
             Thank you for completing the assessment.
           </p>
           <p className="text-xs text-slate-400">
-            Your results have been transmitted to the assessment committee for review. You may close this window.
+            Your profile, uploaded resume, and test responses have been submitted to the evaluation team.
           </p>
         </div>
       </div>

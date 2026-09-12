@@ -3,17 +3,28 @@ const prisma = require('../prisma');
 // Email regex pattern for validation
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const TRACK_NAMES = {
+  SALES_ENGINEER: 'Web Developer cum Sales Engineer',
+  HR_RECRUITER: 'Web Developer cum HR Recruiter',
+  DIGITAL_MARKETING: 'Web Developer cum Digital Marketing',
+};
+
 /**
- * GET /api/test/questions
- * Returns all active questions without the correctAnswer field to protect test integrity
+ * GET /api/test/questions?track=...
+ * Returns the 15 active questions for the requested track without correctAnswer
  */
 const getQuestions = async (req, res) => {
   try {
+    const { track } = req.query;
+    const activeTrack = (track && TRACK_NAMES[track]) ? track : 'SALES_ENGINEER';
+
     const questions = await prisma.question.findMany({
+      where: { track: activeTrack },
       orderBy: { order: 'asc' },
       select: {
         id: true,
         order: true,
+        section: true,
         questionText: true,
         optionA: true,
         optionB: true,
@@ -24,6 +35,8 @@ const getQuestions = async (req, res) => {
 
     return res.status(200).json({
       success: true,
+      track: activeTrack,
+      trackTitle: TRACK_NAMES[activeTrack],
       questions
     });
   } catch (error) {
@@ -36,17 +49,27 @@ const getQuestions = async (req, res) => {
 };
 
 /**
- * POST /api/test/start
- * Registers candidate info and creates an INCOMPLETE test attempt
+ * POST /api/test/start (multipart form data with resume)
+ * Registers candidate with full academic profile and creates an INCOMPLETE test attempt
  */
 const startTest = async (req, res) => {
   try {
-    const { candidateName, email, college, phone } = req.body;
+    const {
+      candidateName,
+      email,
+      phone,
+      college,
+      course,
+      branch,
+      passingYear,
+      currentCity,
+      track
+    } = req.body;
 
     if (!candidateName || typeof candidateName !== 'string' || candidateName.trim() === '') {
       return res.status(400).json({
         success: false,
-        message: 'Full Name is required.'
+        message: 'First name and last name are required.'
       });
     }
 
@@ -59,14 +82,25 @@ const startTest = async (req, res) => {
 
     const trimmedName = candidateName.trim();
     const trimmedEmail = email.trim().toLowerCase();
-    const trimmedCollege = college ? college.trim() : null;
     const trimmedPhone = phone ? phone.trim() : null;
+    const trimmedCollege = college ? college.trim() : null;
+    const trimmedCourse = course ? course.trim() : null;
+    const trimmedBranch = branch ? branch.trim() : null;
+    const trimmedYear = passingYear ? passingYear.trim() : null;
+    const trimmedCity = currentCity ? currentCity.trim() : null;
+
+    const normalizedTrack = (track && TRACK_NAMES[track]) ? track : 'SALES_ENGINEER';
+    const readableTrack = TRACK_NAMES[normalizedTrack];
+
+    const resumeUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
     const questions = await prisma.question.findMany({
+      where: { track: normalizedTrack },
       orderBy: { order: 'asc' },
       select: {
         id: true,
         order: true,
+        section: true,
         questionText: true,
         optionA: true,
         optionB: true,
@@ -78,7 +112,7 @@ const startTest = async (req, res) => {
     if (!questions || questions.length === 0) {
       return res.status(500).json({
         success: false,
-        message: 'No test questions available. Please contact administrator.'
+        message: 'No test questions available for this track. Please contact administrator.'
       });
     }
 
@@ -86,8 +120,14 @@ const startTest = async (req, res) => {
       data: {
         candidateName: trimmedName,
         email: trimmedEmail,
-        college: trimmedCollege,
         phone: trimmedPhone,
+        college: trimmedCollege,
+        course: trimmedCourse,
+        branch: trimmedBranch,
+        passingYear: trimmedYear,
+        currentCity: trimmedCity,
+        resumeUrl,
+        track: readableTrack,
         totalQuestions: questions.length,
         status: 'INCOMPLETE'
       }
@@ -101,6 +141,11 @@ const startTest = async (req, res) => {
         candidateName: attempt.candidateName,
         email: attempt.email,
         college: attempt.college,
+        course: attempt.course,
+        branch: attempt.branch,
+        passingYear: attempt.passingYear,
+        currentCity: attempt.currentCity,
+        track: attempt.track,
         totalQuestions: attempt.totalQuestions,
         startedAt: attempt.startedAt,
         status: attempt.status
@@ -153,6 +198,7 @@ const getAttempt = async (req, res) => {
           id: attempt.id,
           candidateName: attempt.candidateName,
           email: attempt.email,
+          track: attempt.track,
           score: attempt.score,
           totalQuestions: attempt.totalQuestions,
           correctAnswers: attempt.correctAnswers,
@@ -175,6 +221,11 @@ const getAttempt = async (req, res) => {
         candidateName: attempt.candidateName,
         email: attempt.email,
         college: attempt.college,
+        course: attempt.course,
+        branch: attempt.branch,
+        passingYear: attempt.passingYear,
+        currentCity: attempt.currentCity,
+        track: attempt.track,
         totalQuestions: attempt.totalQuestions,
         startedAt: attempt.startedAt,
         status: attempt.status
@@ -238,7 +289,7 @@ const submitAnswer = async (req, res) => {
     const isAnswerProvided = selectedAnswer !== null && selectedAnswer !== undefined && selectedAnswer !== '';
     const normalizedSelected = isAnswerProvided ? String(selectedAnswer).trim().toUpperCase() : null;
     const isCorrect = isAnswerProvided && normalizedSelected === question.correctAnswer.toUpperCase();
-    const parsedTimeTaken = typeof timeTaken === 'number' && !isNaN(timeTaken) ? Math.min(Math.max(timeTaken, 0), 10) : 5.0;
+    const parsedTimeTaken = typeof timeTaken === 'number' && !isNaN(timeTaken) ? Math.min(Math.max(timeTaken, 0), 10) : 7.0;
 
     await prisma.answer.upsert({
       where: {
@@ -280,7 +331,7 @@ const submitAnswer = async (req, res) => {
 
 /**
  * POST /api/test/submit
- * Finalizes test attempt, ensures all questions have records, calculates final score and percentage
+ * Finalizes test attempt for all questions of that track, calculates final score and percentage
  */
 const submitTest = async (req, res) => {
   try {
@@ -305,7 +356,6 @@ const submitTest = async (req, res) => {
       });
     }
 
-    // If already completed, return existing final result
     if (attempt.status === 'COMPLETED') {
       return res.status(200).json({
         success: true,
@@ -314,6 +364,7 @@ const submitTest = async (req, res) => {
           id: attempt.id,
           candidateName: attempt.candidateName,
           email: attempt.email,
+          track: attempt.track,
           score: attempt.score,
           totalQuestions: attempt.totalQuestions,
           correctAnswers: attempt.correctAnswers,
@@ -326,14 +377,23 @@ const submitTest = async (req, res) => {
       });
     }
 
-    const allQuestions = await prisma.question.findMany({
+    // Determine track key from attempt.track string
+    let trackKey = 'SALES_ENGINEER';
+    for (const [key, name] of Object.entries(TRACK_NAMES)) {
+      if (attempt.track === name) {
+        trackKey = key;
+        break;
+      }
+    }
+
+    const trackQuestions = await prisma.question.findMany({
+      where: { track: trackKey },
       orderBy: { order: 'asc' }
     });
 
     const recordedQuestionIds = new Set(attempt.answers.map(a => a.questionId));
 
-    // For any unrecorded question, fill in as unanswered
-    for (const q of allQuestions) {
+    for (const q of trackQuestions) {
       if (!recordedQuestionIds.has(q.id)) {
         await prisma.answer.create({
           data: {
@@ -343,18 +403,17 @@ const submitTest = async (req, res) => {
             correctAnswer: q.correctAnswer,
             isCorrect: false,
             answered: false,
-            timeTaken: 5.0
+            timeTaken: 7.0
           }
         });
       }
     }
 
-    // Refresh answers after filling missing ones
     const finalAnswers = await prisma.answer.findMany({
       where: { attemptId }
     });
 
-    const totalQuestions = allQuestions.length;
+    const totalQuestions = trackQuestions.length;
     let correctAnswers = 0;
     let answeredCount = 0;
 
@@ -391,7 +450,12 @@ const submitTest = async (req, res) => {
         candidateName: updatedAttempt.candidateName,
         email: updatedAttempt.email,
         college: updatedAttempt.college,
-        phone: updatedAttempt.phone,
+        course: updatedAttempt.course,
+        branch: updatedAttempt.branch,
+        passingYear: updatedAttempt.passingYear,
+        currentCity: updatedAttempt.currentCity,
+        resumeUrl: updatedAttempt.resumeUrl,
+        track: updatedAttempt.track,
         score: updatedAttempt.score,
         totalQuestions: updatedAttempt.totalQuestions,
         correctAnswers: updatedAttempt.correctAnswers,

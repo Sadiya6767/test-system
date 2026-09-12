@@ -16,7 +16,8 @@ import {
   RefreshCw,
   Loader2,
   HelpCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  FileText
 } from 'lucide-react';
 import {
   BarChart,
@@ -38,6 +39,7 @@ const AdminDashboard = () => {
   // Search, Filter & Sort State
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [trackFilter, setTrackFilter] = useState('ALL');
   const [scoreFilter, setScoreFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('latest');
 
@@ -50,6 +52,26 @@ const AdminDashboard = () => {
   // Delete Dialog State
   const [candidateToDelete, setCandidateToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const getResumeUrl = (path) => {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+    return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+  };
+
+  const getTrackLabel = (track) => {
+    switch (track) {
+      case 'SALES_ENGINEER':
+        return { label: 'Sales Engineer', bg: 'bg-blue-50 text-blue-700 border-blue-200' };
+      case 'HR_RECRUITER':
+        return { label: 'HR Recruiter', bg: 'bg-purple-50 text-purple-700 border-purple-200' };
+      case 'DIGITAL_MARKETING':
+        return { label: 'Digital Mktg', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+      default:
+        return { label: track || 'General', bg: 'bg-slate-50 text-slate-700 border-slate-200' };
+    }
+  };
 
   // Fetch Summary Statistics
   const loadStats = useCallback(async () => {
@@ -69,12 +91,13 @@ const AdminDashboard = () => {
         status: statusFilter,
         scoreRange: scoreFilter,
         sort: sortBy,
+        track: trackFilter,
       });
       setResults(res.data.results || []);
     } catch (err) {
       console.error('Failed to load results:', err);
     }
-  }, [search, statusFilter, scoreFilter, sortBy]);
+  }, [search, statusFilter, scoreFilter, sortBy, trackFilter]);
 
   // Initial Load
   useEffect(() => {
@@ -337,6 +360,21 @@ const AdminDashboard = () => {
 
             {/* Filter and Sort Dropdowns */}
             <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
+              {/* Role Track Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-500 font-medium">Track:</span>
+                <select
+                  value={trackFilter}
+                  onChange={(e) => setTrackFilter(e.target.value)}
+                  className="bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-800 font-medium focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="ALL">All Tracks</option>
+                  <option value="SALES_ENGINEER">Sales Engineer</option>
+                  <option value="HR_RECRUITER">HR Recruiter</option>
+                  <option value="DIGITAL_MARKETING">Digital Marketing</option>
+                </select>
+              </div>
+
               {/* Status Filter */}
               <div className="flex items-center gap-1.5">
                 <span className="text-slate-500 font-medium">Status:</span>
@@ -408,7 +446,8 @@ const AdminDashboard = () => {
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   <th className="py-3.5 px-4 font-semibold">Candidate</th>
-                  <th className="py-3.5 px-4 font-semibold">College</th>
+                  <th className="py-3.5 px-4 font-semibold">Track</th>
+                  <th className="py-3.5 px-4 font-semibold">Academic Profile</th>
                   <th className="py-3.5 px-4 font-semibold text-center">Score</th>
                   <th className="py-3.5 px-4 font-semibold text-center">Percentage</th>
                   <th className="py-3.5 px-4 font-semibold text-center hidden md:table-cell">Correct</th>
@@ -421,6 +460,7 @@ const AdminDashboard = () => {
               <tbody className="divide-y divide-slate-100">
                 {results.map((r) => {
                   const isCompleted = r.status === 'COMPLETED';
+                  const trackBadge = getTrackLabel(r.track);
 
                   return (
                     <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
@@ -428,11 +468,23 @@ const AdminDashboard = () => {
                       <td className="py-3.5 px-4">
                         <div className="font-bold text-slate-900">{r.candidateName}</div>
                         <div className="text-xs text-slate-500">{r.email}</div>
+                        {r.phone && <div className="text-[11px] text-slate-400">{r.phone}</div>}
                       </td>
 
-                      {/* College */}
-                      <td className="py-3.5 px-4 text-xs text-slate-600 max-w-[150px] truncate">
-                        {r.college || '—'}
+                      {/* Track */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <span className={`inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${trackBadge.bg}`}>
+                          {trackBadge.label}
+                        </span>
+                      </td>
+
+                      {/* College & Degree */}
+                      <td className="py-3.5 px-4 text-xs text-slate-600 max-w-[170px]">
+                        <div className="font-medium text-slate-800 truncate" title={r.college}>{r.college || '—'}</div>
+                        <div className="text-[11px] text-slate-400 truncate">
+                          {r.course || ''} {r.branch ? `• ${r.branch}` : ''} {r.passingYear ? `(${r.passingYear})` : ''}
+                        </div>
+                        {r.currentCity && <div className="text-[10px] text-slate-400 truncate">📍 {r.currentCity}</div>}
                       </td>
 
                       {/* Score */}
@@ -493,6 +545,19 @@ const AdminDashboard = () => {
                       {/* Actions */}
                       <td className="py-3.5 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
+                          {r.resumeUrl && (
+                            <a
+                              href={getResumeUrl(r.resumeUrl)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download
+                              className="p-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition"
+                              title="Download Candidate Resume"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </a>
+                          )}
+
                           <button
                             type="button"
                             onClick={() => handleViewDetails(r.id)}

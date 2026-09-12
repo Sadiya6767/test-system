@@ -24,3 +24,7 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Uploaded candidate files
+uploads/*
+!uploads/.gitkeep

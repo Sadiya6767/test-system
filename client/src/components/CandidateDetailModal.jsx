@@ -1,11 +1,60 @@
 import React from 'react';
-import { X, CheckCircle2, XCircle, Clock, Award, School, Phone, Mail, Calendar, Hourglass } from 'lucide-react';
+import {
+  X,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Award,
+  School,
+  Phone,
+  Mail,
+  Calendar,
+  Hourglass,
+  GraduationCap,
+  MapPin,
+  FileText,
+  Download,
+  Briefcase
+} from 'lucide-react';
+
+const getResumeUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const baseUrl = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+  return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
+const getTrackBadge = (track) => {
+  switch (track) {
+    case 'SALES_ENGINEER':
+      return {
+        label: 'Web Dev cum Sales Engineer',
+        bg: 'bg-blue-50 text-blue-700 border-blue-200'
+      };
+    case 'HR_RECRUITER':
+      return {
+        label: 'Web Dev cum HR Recruiter',
+        bg: 'bg-purple-50 text-purple-700 border-purple-200'
+      };
+    case 'DIGITAL_MARKETING':
+      return {
+        label: 'Web Dev cum Digital Marketing',
+        bg: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      };
+    default:
+      return {
+        label: track || 'General Track',
+        bg: 'bg-slate-50 text-slate-700 border-slate-200'
+      };
+  }
+};
 
 const CandidateDetailModal = ({ isOpen, onClose, data, loading }) => {
   if (!isOpen) return null;
 
   const attempt = data?.attempt;
   const questions = data?.questions || [];
+  const trackInfo = attempt ? getTrackBadge(attempt.track) : null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fade-in">
@@ -42,27 +91,61 @@ const CandidateDetailModal = ({ isOpen, onClose, data, loading }) => {
               {/* Candidate & Test Meta Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Candidate Info Card */}
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                    Candidate Details
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="font-semibold text-base text-slate-900">
+                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        Candidate Profile
+                      </h3>
+                      {trackInfo && (
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${trackInfo.bg}`}>
+                          {trackInfo.label}
+                        </span>
+                      )}
+                    </div>
+                    <div className="font-semibold text-base text-slate-900 mb-2">
                       {attempt.candidateName}
                     </div>
-                    <div className="flex items-center gap-2 text-slate-600 text-xs sm:text-sm">
-                      <Mail className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span className="truncate">{attempt.email}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-slate-600 text-xs sm:text-sm">
-                      <School className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span>{attempt.college || 'Not provided'}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-slate-600 text-xs sm:text-sm">
-                      <Phone className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span>{attempt.phone || 'Not provided'}</span>
+                    <div className="space-y-1.5 text-xs text-slate-600">
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{attempt.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{attempt.phone || 'Not provided'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <School className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">{attempt.college || 'Not provided'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <GraduationCap className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>
+                          {attempt.course || 'N/A'} {attempt.branch ? `(${attempt.branch})` : ''} • Passing: {attempt.passingYear || 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>Location: {attempt.currentCity || 'Not provided'}</span>
+                      </div>
                     </div>
                   </div>
+
+                  {attempt.resumeUrl && (
+                    <div className="mt-4 pt-3 border-t border-slate-200/70">
+                      <a
+                        href={getResumeUrl(attempt.resumeUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold text-indigo-700 bg-indigo-100/70 hover:bg-indigo-100 border border-indigo-200 transition shadow-sm w-full justify-center"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Download Resume ({attempt.resumeUrl.split('.').pop().toUpperCase()})</span>
+                      </a>
+                    </div>
+                  )}
                 </div>
 
                 {/* Score & Timing Card */}
@@ -124,7 +207,7 @@ const CandidateDetailModal = ({ isOpen, onClose, data, loading }) => {
               <div className="space-y-4">
                 <h3 className="text-sm font-bold text-slate-900 flex items-center justify-between border-b pb-2">
                   <span>Questions Breakdown ({questions.length})</span>
-                  <span className="text-xs text-slate-400 font-normal">Max 5.0s per question</span>
+                  <span className="text-xs text-slate-400 font-normal">Max 7.0s per question</span>
                 </h3>
 
                 {questions.map((q, idx) => {
@@ -156,9 +239,16 @@ const CandidateDetailModal = ({ isOpen, onClose, data, loading }) => {
                       className="border border-slate-200 rounded-xl p-4 bg-white hover:border-slate-300 transition"
                     >
                       <div className="flex items-start justify-between gap-3 mb-2">
-                        <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
-                          Question {q.order || idx + 1}
-                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                            Question {q.order || idx + 1}
+                          </span>
+                          {q.section && (
+                            <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                              {q.section}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-slate-500 flex items-center gap-1">
                             <Hourglass className="w-3.5 h-3.5 text-slate-400" />

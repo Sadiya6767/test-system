@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { testAPI } from '../services/api';
-import { Timer, AlertTriangle, CheckCircle2, ArrowRight, Loader2 } from 'lucide-react';
+import { Timer, AlertTriangle, CheckCircle2, ArrowRight, Loader2, Layers } from 'lucide-react';
 
-const QUESTION_DURATION = 5; // seconds per question
+const QUESTION_DURATION = 7; // 7 seconds per question as requested
 
 const CandidateTest = () => {
   const navigate = useNavigate();
 
   const [attemptId, setAttemptId] = useState(null);
   const [candidateName, setCandidateName] = useState('');
+  const [trackName, setTrackName] = useState('');
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(QUESTION_DURATION);
@@ -18,7 +19,6 @@ const CandidateTest = () => {
   const [isFinishing, setIsFinishing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
 
-  // Refs to prevent race conditions and multiple triggers
   const isTransitioningRef = useRef(false);
   const timerRef = useRef(null);
   const transitionTimeoutRef = useRef(null);
@@ -27,12 +27,10 @@ const CandidateTest = () => {
   const questionsRef = useRef([]);
   const currentIndexRef = useRef(0);
 
-  // Keep refs in sync with state for access in intervals/event handlers
   attemptIdRef.current = attemptId;
   questionsRef.current = questions;
   currentIndexRef.current = currentIndex;
 
-  // Initialize test session & handle page refresh recovery
   useEffect(() => {
     const initSession = async () => {
       const storedAttemptId = localStorage.getItem('current_attempt_id');
@@ -44,7 +42,6 @@ const CandidateTest = () => {
       setAttemptId(storedAttemptId);
 
       try {
-        // Fetch questions from API or cache
         let loadedQuestions = [];
         const cachedQuestions = sessionStorage.getItem('test_questions');
         if (cachedQuestions) {
@@ -64,7 +61,6 @@ const CandidateTest = () => {
         setQuestions(loadedQuestions);
         questionsRef.current = loadedQuestions;
 
-        // Verify attempt state on server
         const attemptRes = await testAPI.getAttempt(storedAttemptId);
         const { isCompleted, attempt, answeredQuestionIds } = attemptRes.data;
 
@@ -78,14 +74,15 @@ const CandidateTest = () => {
         if (attempt?.candidateName) {
           setCandidateName(attempt.candidateName);
         }
+        if (attempt?.track) {
+          setTrackName(attempt.track);
+        }
 
-        // Resume at first unanswered question
         if (answeredQuestionIds && answeredQuestionIds.length > 0) {
           const answeredSet = new Set(answeredQuestionIds);
           const firstUnansweredIndex = loadedQuestions.findIndex(q => !answeredSet.has(q.id));
 
           if (firstUnansweredIndex === -1) {
-            // All questions answered, submit test!
             await finalizeTest(storedAttemptId);
             return;
           } else {
@@ -105,13 +102,11 @@ const CandidateTest = () => {
     initSession();
 
     return () => {
-      // Clear timers on unmount
       if (timerRef.current) clearInterval(timerRef.current);
       if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current);
     };
   }, [navigate]);
 
-  // Finalize Test and Redirect to Result
   const finalizeTest = useCallback(async (currentAttemptId) => {
     setIsFinishing(true);
     if (timerRef.current) clearInterval(timerRef.current);
@@ -131,7 +126,6 @@ const CandidateTest = () => {
     }
   }, [navigate]);
 
-  // Move to next question or submit test if last question reached
   const advanceToNext = useCallback((nextIdx) => {
     const totalQ = questionsRef.current.length;
     if (nextIdx >= totalQ) {
@@ -146,7 +140,6 @@ const CandidateTest = () => {
     }
   }, [finalizeTest]);
 
-  // Handle Question Timeout (0 seconds reached)
   const handleTimeout = useCallback(() => {
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
@@ -157,26 +150,22 @@ const CandidateTest = () => {
     const currentAttId = attemptIdRef.current;
 
     if (currentQ && currentAttId) {
-      // Send unanswered record to server
       testAPI.submitAnswer({
         attemptId: currentAttId,
         questionId: currentQ.id,
         selectedAnswer: null,
-        timeTaken: 5.0,
+        timeTaken: 7.0,
       }).catch(err => console.error('Auto timeout sync error:', err));
     }
 
-    // Brief visual feedback showing time out, then advance
     transitionTimeoutRef.current = setTimeout(() => {
       advanceToNext(currentIndexRef.current + 1);
     }, 200);
   }, [advanceToNext]);
 
-  // Start fresh 5-second countdown when question index changes
   useEffect(() => {
     if (isLoading || isFinishing || questions.length === 0) return;
 
-    // Reset lock and timing
     isTransitioningRef.current = false;
     questionStartTimeRef.current = Date.now();
     setSecondsLeft(QUESTION_DURATION);
@@ -202,18 +191,15 @@ const CandidateTest = () => {
     };
   }, [currentIndex, isLoading, isFinishing, questions.length, handleTimeout]);
 
-  // Handle User Option Selection
   const handleOptionSelect = (optionKey) => {
-    // Prevent multiple submissions, double-clicking, or submission after timer expired
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
 
-    // Immediately stop timer
     if (timerRef.current) clearInterval(timerRef.current);
 
     const elapsed = Math.min(
       Math.max(parseFloat(((Date.now() - questionStartTimeRef.current) / 1000).toFixed(2)), 0.1),
-      5.0
+      7.0
     );
 
     setSelectedOption(optionKey);
@@ -228,7 +214,6 @@ const CandidateTest = () => {
       }).catch(err => console.error('Answer submission error:', err));
     }
 
-    // Short visual transition (250ms) before automatically jumping to next question
     transitionTimeoutRef.current = setTimeout(() => {
       advanceToNext(currentIndex + 1);
     }, 250);
@@ -239,7 +224,7 @@ const CandidateTest = () => {
       <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">
         <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mb-4" />
         <p className="text-base font-semibold text-slate-800">Preparing assessment questions...</p>
-        <p className="text-xs text-slate-500 mt-1">Get ready! Questions will begin immediately.</p>
+        <p className="text-xs text-slate-500 mt-1">Get ready! Questions will begin immediately with 7-second countdown.</p>
       </div>
     );
   }
@@ -276,10 +261,10 @@ const CandidateTest = () => {
   const totalQuestions = questions.length;
   const progressPercent = ((currentIndex + 1) / totalQuestions) * 100;
 
-  // Visual timer color shifts: green (4-5s) -> amber (2-3s) -> red (1s or 0s)
+  // Visual timer color shifts: green (5-7s) -> amber (3-4s) -> red (1-2s)
   const timerColor =
-    secondsLeft > 3 ? 'text-emerald-600 bg-emerald-50 border-emerald-300' :
-    secondsLeft > 1 ? 'text-amber-600 bg-amber-50 border-amber-300' :
+    secondsLeft > 4 ? 'text-emerald-600 bg-emerald-50 border-emerald-300' :
+    secondsLeft > 2 ? 'text-amber-600 bg-amber-50 border-amber-300' :
     'text-rose-600 bg-rose-50 border-rose-400 animate-pulse';
 
   const options = [
@@ -293,24 +278,39 @@ const CandidateTest = () => {
     <div className="max-w-2xl mx-auto px-4 py-6 sm:py-10 select-none">
       {/* Top Bar: Progress and Candidate Info */}
       <div className="mb-6">
-        <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-slate-600 mb-2">
-          <span>Question {currentIndex + 1} of {totalQuestions}</span>
-          <span className="text-slate-400 font-normal">Candidate: {candidateName || 'Anonymous'}</span>
+        <div className="flex items-center justify-between text-xs sm:text-sm font-bold text-slate-600 mb-1.5">
+          <span className="flex items-center gap-2">
+            <span>Question {currentIndex + 1} of {totalQuestions}</span>
+            {currentQuestion.section && (
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+                {currentQuestion.section}
+              </span>
+            )}
+          </span>
+          <span className="text-slate-500 font-medium text-xs">
+            {candidateName}
+          </span>
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
           <div
             className="bg-indigo-600 h-full rounded-full transition-all duration-300 ease-out"
             style={{ width: `${progressPercent}%` }}
           ></div>
         </div>
+
+        {trackName && (
+          <p className="text-[11px] text-slate-400 font-medium mt-1 text-right">
+            Track: {trackName}
+          </p>
+        )}
       </div>
 
       {/* Main Question Card */}
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-100 border border-slate-200 p-6 sm:p-8 relative overflow-hidden">
         {/* Timer Display */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-5 mb-6">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
           <div>
             <span className="text-xs uppercase tracking-wider font-bold text-slate-400 block">
               Time Remaining
@@ -318,10 +318,10 @@ const CandidateTest = () => {
             <span className="text-xs text-slate-500">Auto-advances when time expires</span>
           </div>
 
-          {/* Prominent Circular/Badge Countdown */}
+          {/* Large Countdown Box (7 to 1) */}
           <div className="flex items-center gap-2">
             <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl border-2 flex items-center justify-center font-extrabold text-2xl sm:text-3xl transition-colors shadow-sm ${timerColor}`}>
-              {secondsLeft}
+              {secondsLeft}s
             </div>
           </div>
         </div>
@@ -350,7 +350,6 @@ const CandidateTest = () => {
                     : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50/80 active:scale-[0.99] text-slate-800'
                 } ${isTransitioningRef.current ? 'cursor-default' : ''}`}
               >
-                {/* Option Letter Badge */}
                 <div
                   className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 transition ${
                     isSelected
@@ -361,7 +360,6 @@ const CandidateTest = () => {
                   {opt.key}
                 </div>
 
-                {/* Option Text */}
                 <span className="text-sm sm:text-base font-medium flex-1">
                   {opt.text}
                 </span>
@@ -376,7 +374,7 @@ const CandidateTest = () => {
 
         {/* Bottom Hint */}
         <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-          <span>Speed matters • 5 seconds per question</span>
+          <span>Speed matters • 7 seconds per question</span>
           <span>No pausing • No going back</span>
         </div>
       </div>

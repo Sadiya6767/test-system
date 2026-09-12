@@ -17,6 +17,8 @@ model Admin {
 
 model Question {
   id           Int      @id @default(autoincrement())
+  track        String   @default("SALES_ENGINEER") // SALES_ENGINEER, HR_RECRUITER, DIGITAL_MARKETING
+  section      String   @default("Web Development") // Web Development, Sales Engineer, HR Recruiter, Digital Marketing
   order        Int      @default(0)
   questionText String
   optionA      String
@@ -26,16 +28,24 @@ model Question {
   correctAnswer String
   createdAt    DateTime @default(now())
   answers      Answer[]
+
+  @@index([track])
 }
 
 model TestAttempt {
   id             String    @id @default(uuid())
   candidateName  String
   email          String
-  college        String?
   phone          String?
+  college        String?
+  course         String?
+  branch         String?
+  passingYear    String?
+  currentCity    String?
+  resumeUrl      String?
+  track          String    @default("Web Developer cum Sales Engineer")
   score          Int       @default(0)
-  totalQuestions Int       @default(10)
+  totalQuestions Int       @default(15)
   correctAnswers Int       @default(0)
   wrongAnswers   Int       @default(0)
   unanswered     Int       @default(0)
@@ -47,6 +57,7 @@ model TestAttempt {
 
   @@index([email])
   @@index([status])
+  @@index([track])
   @@index([startedAt])
 }
 
