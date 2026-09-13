@@ -8,7 +8,8 @@ const {
   startTest,
   getAttempt,
   submitAnswer,
-  submitTest
+  submitTest,
+  getResumeFile
 } = require('../controllers/testController');
 
 // Configure multer storage for resumes
@@ -36,6 +37,7 @@ const upload = multer({
 router.get('/questions', getQuestions);
 router.post('/start', upload.single('resume'), startTest);
 router.get('/attempt/:id', getAttempt);
+router.get('/resume/:attemptId', getResumeFile);
 router.post('/answer', submitAnswer);
 router.post('/submit', submitTest);
 

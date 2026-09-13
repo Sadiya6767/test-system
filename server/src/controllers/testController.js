@@ -1,4 +1,6 @@
 const prisma = require('../prisma');
+const fs = require('fs');
+const path = require('path');
 
 // Email regex pattern for validation
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -92,7 +94,22 @@ const startTest = async (req, res) => {
     const normalizedTrack = (track && TRACK_NAMES[track]) ? track : 'SALES_ENGINEER';
     const readableTrack = TRACK_NAMES[normalizedTrack];
 
-    const resumeUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    let fileBase64 = null;
+    let originalName = 'resume.pdf';
+    let mimeType = 'application/pdf';
+    let fileSize = 0;
+
+    if (req.file) {
+      originalName = req.file.originalname;
+      mimeType = req.file.mimetype || 'application/pdf';
+      fileSize = req.file.size || 0;
+      try {
+        const buffer = fs.readFileSync(req.file.path);
+        fileBase64 = buffer.toString('base64');
+      } catch (fErr) {
+        console.error('Error reading resume buffer:', fErr);
+      }
+    }
 
     const questions = await prisma.question.findMany({
       where: { track: normalizedTrack },
@@ -126,12 +143,37 @@ const startTest = async (req, res) => {
         branch: trimmedBranch,
         passingYear: trimmedYear,
         currentCity: trimmedCity,
-        resumeUrl,
+        resumeUrl: req.file ? `/api/test/resume/pending` : null,
         track: readableTrack,
         totalQuestions: questions.length,
         status: 'INCOMPLETE'
       }
     });
+
+    let permanentResumeUrl = null;
+    if (req.file) {
+      permanentResumeUrl = `/api/test/resume/${attempt.id}`;
+      await prisma.testAttempt.update({
+        where: { id: attempt.id },
+        data: { resumeUrl: permanentResumeUrl }
+      });
+
+      if (fileBase64) {
+        try {
+          await prisma.candidateResume.create({
+            data: {
+              attemptId: attempt.id,
+              filename: originalName,
+              mimetype: mimeType,
+              data: fileBase64,
+              size: fileSize
+            }
+          });
+        } catch (dbResumeErr) {
+          console.error('Failed to store resume in database:', dbResumeErr);
+        }
+      }
+    }
 
     return res.status(201).json({
       success: true,
@@ -475,10 +517,57 @@ const submitTest = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/test/resume/:attemptId
+ * Streams or downloads candidate resume file directly from database or disk
+ */
+const getResumeFile = async (req, res) => {
+  try {
+    const { attemptId } = req.params;
+
+    // 1. Try finding in database
+    const resumeRecord = await prisma.candidateResume.findUnique({
+      where: { attemptId }
+    });
+
+    if (resumeRecord && resumeRecord.data) {
+      const fileBuffer = Buffer.from(resumeRecord.data, 'base64');
+      res.setHeader('Content-Type', resumeRecord.mimetype || 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(resumeRecord.filename)}"`);
+      res.setHeader('Content-Length', fileBuffer.length);
+      return res.send(fileBuffer);
+    }
+
+    // 2. Fallback to disk if local file exists
+    const attempt = await prisma.testAttempt.findUnique({
+      where: { id: attemptId }
+    });
+
+    if (attempt && attempt.resumeUrl) {
+      const diskPath = path.join(__dirname, '../../uploads', path.basename(attempt.resumeUrl));
+      if (fs.existsSync(diskPath)) {
+        return res.sendFile(diskPath);
+      }
+    }
+
+    return res.status(404).json({
+      success: false,
+      message: 'Resume file not found.'
+    });
+  } catch (error) {
+    console.error('Error fetching resume file:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve resume file.'
+    });
+  }
+};
+
 module.exports = {
   getQuestions,
   startTest,
   getAttempt,
   submitAnswer,
-  submitTest
+  submitTest,
+  getResumeFile
 };

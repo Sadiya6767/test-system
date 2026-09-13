@@ -542,10 +542,8 @@ async function main() {
     console.log(`Admin user ${adminEmail} already exists.`);
   }
 
-  // 2. Clean up & Seed 45 Questions (15 per track)
-  console.log('Clearing older questions to seed all 3 tracks...');
-  await prisma.answer.deleteMany({});
-  await prisma.question.deleteMany({});
+  // 2. Safe Seed 45 Questions (15 per track) without deleting existing answers or attempts
+  console.log('Ensuring all 45 questions across 3 tracks are seeded...');
 
   const allQuestions = [
     ...salesEngineerQuestions,
@@ -554,12 +552,35 @@ async function main() {
   ];
 
   for (const q of allQuestions) {
-    await prisma.question.create({
-      data: q
+    const existing = await prisma.question.findFirst({
+      where: {
+        track: q.track,
+        order: q.order
+      }
     });
+
+    if (!existing) {
+      await prisma.question.create({
+        data: q
+      });
+    } else {
+      // Update question text and options if changed, preserving question ID and all linked answers
+      await prisma.question.update({
+        where: { id: existing.id },
+        data: {
+          section: q.section,
+          questionText: q.questionText,
+          optionA: q.optionA,
+          optionB: q.optionB,
+          optionC: q.optionC,
+          optionD: q.optionD,
+          correctAnswer: q.correctAnswer
+        }
+      });
+    }
   }
 
-  console.log(`Successfully seeded ${allQuestions.length} questions across 3 tracks!`);
+  console.log(`Successfully verified and seeded ${allQuestions.length} questions across 3 tracks!`);
 }
 
 main()

@@ -54,11 +54,23 @@ model TestAttempt {
   startedAt      DateTime  @default(now())
   completedAt    DateTime?
   answers        Answer[]
+  resume         CandidateResume?
 
   @@index([email])
   @@index([status])
   @@index([track])
   @@index([startedAt])
+}
+
+model CandidateResume {
+  id        String      @id @default(uuid())
+  attemptId String      @unique
+  attempt   TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  filename  String
+  mimetype  String
+  data      String
+  size      Int         @default(0)
+  createdAt DateTime    @default(now())
 }
 
 model Answer {
