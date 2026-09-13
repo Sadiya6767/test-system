@@ -28,14 +28,15 @@ const prisma = require('./prisma');
 // Health check endpoint with database diagnostics
 app.get('/api/health', async (req, res) => {
   try {
-    const adminCount = await prisma.admin.count();
+    const admins = await prisma.admin.findMany({ select: { email: true } });
     const questionCount = await prisma.question.count();
     const attemptCount = await prisma.testAttempt.count();
     res.status(200).json({
       status: 'ok',
       timestamp: new Date().toISOString(),
       database: 'connected',
-      adminCount,
+      adminCount: admins.length,
+      adminEmails: admins.map(a => a.email),
       questionCount,
       attemptCount
     });
