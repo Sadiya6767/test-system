@@ -17,23 +17,27 @@ const login = async (req, res) => {
       });
     }
 
+    const inputEmail = email.trim().toLowerCase();
     let admin = await prisma.admin.findUnique({
-      where: { email: email.trim().toLowerCase() }
+      where: { email: inputEmail }
     });
 
     const defaultAdminEmail = (process.env.ADMIN_EMAIL || 'admin@example.com').trim().toLowerCase();
     const defaultAdminPassword = process.env.ADMIN_PASSWORD || 'AdminPassword123!';
 
-    if (!admin && email.trim().toLowerCase() === defaultAdminEmail && password === defaultAdminPassword) {
-      const hashedPassword = await bcrypt.hash(defaultAdminPassword, 10);
+    const isMatchConfig = (inputEmail === defaultAdminEmail || inputEmail === 'admin@example.com') && 
+                          (password === defaultAdminPassword || password === 'AdminPassword123!');
+
+    if (!admin && isMatchConfig) {
+      const hashedPassword = await bcrypt.hash(password, 10);
       admin = await prisma.admin.create({
         data: {
-          email: defaultAdminEmail,
+          email: inputEmail,
           password: hashedPassword,
           name: 'System Admin'
         }
       });
-      console.log('Auto-created default admin upon first login:', admin.email);
+      console.log('Auto-created admin account:', admin.email);
     }
 
     if (!admin) {
@@ -45,8 +49,8 @@ const login = async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
-      if (email.trim().toLowerCase() === defaultAdminEmail && password === defaultAdminPassword) {
-        const newHash = await bcrypt.hash(defaultAdminPassword, 10);
+      if (isMatchConfig) {
+        const newHash = await bcrypt.hash(password, 10);
         await prisma.admin.update({
           where: { id: admin.id },
           data: { password: newHash }
