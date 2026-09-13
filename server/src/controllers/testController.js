@@ -94,6 +94,42 @@ const startTest = async (req, res) => {
     const normalizedTrack = (track && TRACK_NAMES[track]) ? track : 'SALES_ENGINEER';
     const readableTrack = TRACK_NAMES[normalizedTrack];
 
+    // Single Attempt Enforcement: Block if candidate with this email or phone has already taken the test
+    const existingAttempt = await prisma.testAttempt.findFirst({
+      where: {
+        OR: [
+          { email: trimmedEmail },
+          ...(trimmedPhone ? [{ phone: trimmedPhone }] : [])
+        ]
+      },
+      orderBy: { startedAt: 'desc' }
+    });
+
+    if (existingAttempt) {
+      if (existingAttempt.status === 'COMPLETED') {
+        return res.status(400).json({
+          success: false,
+          message: 'You have already submitted this test. Each candidate is strictly allowed only one attempt.'
+        });
+      }
+
+      // If they have an incomplete attempt started within the last 30 minutes, prompt to resume
+      const attemptAgeMinutes = (Date.now() - new Date(existingAttempt.startedAt).getTime()) / (1000 * 60);
+      if (attemptAgeMinutes < 30) {
+        return res.status(400).json({
+          success: false,
+          message: 'You already have an ongoing test session in progress. Please resume your session.',
+          canResume: true,
+          attemptId: existingAttempt.id
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Your test session has expired. Each candidate is allowed only one attempt.'
+        });
+      }
+    }
+
     let fileBase64 = null;
     let originalName = 'resume.pdf';
     let mimeType = 'application/pdf';
@@ -496,14 +532,8 @@ const submitTest = async (req, res) => {
         branch: updatedAttempt.branch,
         passingYear: updatedAttempt.passingYear,
         currentCity: updatedAttempt.currentCity,
-        resumeUrl: updatedAttempt.resumeUrl,
         track: updatedAttempt.track,
-        score: updatedAttempt.score,
         totalQuestions: updatedAttempt.totalQuestions,
-        correctAnswers: updatedAttempt.correctAnswers,
-        wrongAnswers: updatedAttempt.wrongAnswers,
-        unanswered: updatedAttempt.unanswered,
-        percentage: updatedAttempt.percentage,
         status: updatedAttempt.status,
         completedAt: updatedAttempt.completedAt
       }

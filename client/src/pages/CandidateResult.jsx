@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Award, CheckCircle, XCircle, Clock, ShieldCheck, Briefcase } from 'lucide-react';
+import { CheckCircle2, Briefcase, Mail, School, Clock, FileCheck } from 'lucide-react';
 
 const CandidateResult = () => {
   const navigate = useNavigate();
@@ -23,133 +23,99 @@ const CandidateResult = () => {
 
   const {
     candidateName,
+    email,
+    college,
+    course,
     track = 'Web Developer Assessment',
-    score = 0,
-    totalQuestions = 15,
-    correctAnswers = 0,
-    wrongAnswers = 0,
-    unanswered = 0,
-    percentage = 0,
+    completedAt
   } = result;
 
-  let performanceTier = {
-    title: 'Keep Practicing',
-    badgeClass: 'bg-rose-100 text-rose-800 border-rose-200',
-    description: 'Keep studying and reviewing fundamental concepts to improve your score.',
-  };
-
-  if (percentage >= 80) {
-    performanceTier = {
-      title: 'Excellent',
-      badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      description: 'Outstanding technical proficiency! You demonstrated rapid comprehension and high accuracy.',
-    };
-  } else if (percentage >= 60) {
-    performanceTier = {
-      title: 'Good',
-      badgeClass: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-      description: 'Solid performance with strong grasp of key technical fundamentals.',
-    };
-  } else if (percentage >= 40) {
-    performanceTier = {
-      title: 'Needs Improvement',
-      badgeClass: 'bg-amber-100 text-amber-800 border-amber-200',
-      description: 'You understand some fundamentals, but time pressure and specialized questions need practice.',
-    };
-  }
+  const formattedDate = completedAt
+    ? new Date(completedAt).toLocaleString('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      })
+    : new Date().toLocaleString('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      });
 
   return (
     <div className="max-w-xl mx-auto px-4 py-8 sm:py-12 animate-fade-in">
-      {/* Celebration Header */}
+      {/* Celebration & Success Header */}
       <div className="text-center mb-6">
-        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
-          <ShieldCheck className="w-8 h-8" />
+        <div className="w-16 h-16 bg-emerald-50 border-2 border-emerald-200 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-50">
+          <CheckCircle2 className="w-9 h-9" />
         </div>
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-          Test Completed!
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          Assessment Submitted Successfully!
         </h1>
-        <p className="mt-1 text-slate-500 text-sm">
-          Assessment submitted and officially recorded on the server
+        <p className="mt-1.5 text-slate-500 text-xs sm:text-sm">
+          Your responses, profile, and resume have been securely recorded.
         </p>
       </div>
 
-      {/* Main Result Card */}
-      <div className="bg-white rounded-3xl shadow-xl shadow-slate-100 border border-slate-200 p-6 sm:p-8">
-        {/* Candidate & Track Details */}
+      {/* Main Submission Card */}
+      <div className="bg-white rounded-3xl shadow-xl shadow-slate-100 border border-slate-200 p-6 sm:p-8 space-y-6">
+        {/* Candidate & Role Profile */}
         <div className="text-center pb-6 border-b border-slate-100">
-          <span className="text-xs uppercase font-bold text-slate-400 tracking-wider">Candidate</span>
-          <h2 className="text-2xl font-bold text-slate-900 mt-0.5">{candidateName}</h2>
+          <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider block mb-1">
+            Candidate Submission
+          </span>
+          <h2 className="text-xl sm:text-2xl font-bold text-slate-900">{candidateName}</h2>
 
-          <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold">
+          <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-semibold">
             <Briefcase className="w-3.5 h-3.5 text-indigo-600" />
             <span>{track}</span>
           </div>
 
-          <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${performanceTier.badgeClass}">
-            <Award className="w-4 h-4" />
-            <span>Performance: {performanceTier.title}</span>
+          <div className="mt-3 text-xs text-slate-500 space-y-1">
+            {email && (
+              <div className="flex items-center justify-center gap-1.5">
+                <Mail className="w-3.5 h-3.5 text-slate-400" />
+                <span>{email}</span>
+              </div>
+            )}
+            {college && (
+              <div className="flex items-center justify-center gap-1.5">
+                <School className="w-3.5 h-3.5 text-slate-400" />
+                <span>{course ? `${course} • ` : ''}{college}</span>
+              </div>
+            )}
           </div>
-          <p className="mt-2 text-xs text-slate-500 max-w-sm mx-auto">
-            {performanceTier.description}
-          </p>
         </div>
 
-        {/* Big Score Display */}
-        <div className="my-6 p-6 rounded-2xl bg-gradient-to-br from-slate-50 to-indigo-50/40 border border-indigo-100/60 text-center">
-          <div className="flex items-baseline justify-center gap-2">
-            <span className="text-5xl sm:text-6xl font-black text-indigo-600 tracking-tight">
-              {score}
+        {/* Status Notice Banner */}
+        <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <FileCheck className="w-4 h-4 text-emerald-600" />
+              Submission Status
             </span>
-            <span className="text-2xl sm:text-3xl font-bold text-slate-400">
-              / {totalQuestions}
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              Under Review
             </span>
           </div>
-          <div className="mt-1 text-base font-bold text-slate-700">
-            Percentage: <span className="text-indigo-600">{percentage}%</span>
-          </div>
+
+          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            Your assessment responses have been successfully submitted to our recruitment and technical evaluation team for review.
+          </p>
+
+          <p className="text-xs text-slate-500 leading-relaxed pt-2 border-t border-slate-200/60">
+            Our team will evaluate your test submission alongside your uploaded resume. If shortlisted, you will be contacted directly via your registered email or mobile number regarding the next steps in the selection process.
+          </p>
         </div>
 
-        {/* Detailed Breakdown Counters */}
-        <div className="grid grid-cols-3 gap-3 text-center mb-6">
-          <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-100">
-            <div className="flex items-center justify-center gap-1 text-emerald-600 text-xs font-bold mb-1">
-              <CheckCircle className="w-4 h-4" />
-              <span>Correct</span>
-            </div>
-            <div className="text-2xl font-extrabold text-emerald-700">
-              {correctAnswers}
-            </div>
+        {/* Timestamp & Single-Attempt Policy Note */}
+        <div className="pt-2 text-center space-y-3">
+          <div className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+            <Clock className="w-3.5 h-3.5" />
+            <span>Completed on: {formattedDate}</span>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-100">
-            <div className="flex items-center justify-center gap-1 text-rose-600 text-xs font-bold mb-1">
-              <XCircle className="w-4 h-4" />
-              <span>Wrong</span>
-            </div>
-            <div className="text-2xl font-extrabold text-rose-700">
-              {wrongAnswers}
-            </div>
+          <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 text-amber-900 text-xs text-center font-medium">
+            <span className="font-bold">Important Notice:</span> Only 1 attempt is permitted per candidate. Multiple submissions or re-tests are strictly disabled. You may now safely close this browser window.
           </div>
-
-          <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-100">
-            <div className="flex items-center justify-center gap-1 text-amber-600 text-xs font-bold mb-1">
-              <Clock className="w-4 h-4" />
-              <span>Unanswered</span>
-            </div>
-            <div className="text-2xl font-extrabold text-amber-700">
-              {unanswered}
-            </div>
-          </div>
-        </div>
-
-        {/* Completion Message */}
-        <div className="pt-4 border-t border-slate-100 text-center">
-          <p className="text-sm font-semibold text-slate-800 mb-1">
-            Thank you for completing the assessment.
-          </p>
-          <p className="text-xs text-slate-400">
-            Your profile, uploaded resume, and test responses have been submitted to the evaluation team.
-          </p>
         </div>
       </div>
     </div>
