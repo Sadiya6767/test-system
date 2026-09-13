@@ -23,9 +23,29 @@ app.use(express.urlencoded({ extended: true }));
 // Serve uploaded resumes statically
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+const prisma = require('./prisma');
+
+// Health check endpoint with database diagnostics
+app.get('/api/health', async (req, res) => {
+  try {
+    const adminCount = await prisma.admin.count();
+    const questionCount = await prisma.question.count();
+    const attemptCount = await prisma.testAttempt.count();
+    res.status(200).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+      adminCount,
+      questionCount,
+      attemptCount
+    });
+  } catch (err) {
+    res.status(200).json({
+      status: 'degraded',
+      timestamp: new Date().toISOString(),
+      databaseError: err.message
+    });
+  }
 });
 
 // Mount modular routes
