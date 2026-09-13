@@ -46,8 +46,15 @@ app.use((err, req, res, next) => {
   });
 });
 
+const { main: seedDatabase } = require('../prisma/seed');
+
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
   console.log(`Candidate API: http://localhost:${PORT}/api/test`);
   console.log(`Admin API:     http://localhost:${PORT}/api/admin`);
+
+  // Ensure Admin & Questions are present on database connection
+  seedDatabase()
+    .then(() => console.log('Database initialization verified.'))
+    .catch((err) => console.error('Database initialization note:', err.message));
 });

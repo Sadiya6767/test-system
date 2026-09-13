@@ -583,11 +583,15 @@ async function main() {
   console.log(`Successfully verified and seeded ${allQuestions.length} questions across 3 tracks!`);
 }
 
-main()
-  .catch((e) => {
-    console.error('Seeding error:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (require.main === module) {
+  main()
+    .catch((e) => {
+      console.error('Seeding error:', e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
+
+module.exports = { main };
