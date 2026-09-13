@@ -43,7 +43,7 @@ const AdminLogin = () => {
   };
 
   const handleFillDemo = () => {
-    setEmail('admin@example.com');
+    setEmail('sadiyahaldwani413@gmail.com');
     setPassword('AdminPassword123!');
     setError(null);
   };
